@@ -3,10 +3,7 @@ provider "aws" {
 }
 // 기본 VPC 정보
 data "aws_vpc" "default" {
-    filter {
-        name   = "tag:Name"
-        values = ["eks-vpc"]
-    }
+    default = true
 }
 
 data "aws_subnets" "example" {

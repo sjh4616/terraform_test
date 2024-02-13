@@ -62,7 +62,7 @@ resource "aws_internet_gateway" "aws00-igw" {
 // EIP
 resource "aws_eip" "aws00-eip" {
   domain     = "vpc"
-  depends_on = ["aws_internet_gateway.aws00-igw"]
+  depends_on = [aws_internet_gateway.aws00-igw]
   lifecycle {
     create_before_destroy = true
   }
@@ -76,7 +76,7 @@ resource "aws_eip" "aws00-eip" {
 resource "aws_nat_gateway" "aws00-nat" {
   allocation_id = aws_eip.aws00-eip.id
   subnet_id = aws_subnet.aws00-public-subnet-2a.id
-  depends_on = [ "aws_internet_gateway.aws00-igw" ]
+  depends_on = [ aws_internet_gateway.aws00-igw ]
 
   tags = {
     Name = "aws00-nat"
