@@ -15,12 +15,12 @@ resource "aws_launch_template" "example" {
 
 // 오토스케일링 그룹
 resource "aws_autoscaling_group" "example" {
-  vpc_zone_identifier = [data.terraform_remote_state.vpc.outputs.private-subnet-2a-id, 
-                         data.terraform_remote_state.vpc.outputs.private-subnet-2c-id ]
-  name               = "aws00-asg"
-  desired_capacity   = 1
-  min_size           = 1
-  max_size           = 2
+  vpc_zone_identifier = [data.terraform_remote_state.vpc.outputs.private-subnet-2a-id,
+  data.terraform_remote_state.vpc.outputs.private-subnet-2c-id]
+  name             = "aws00-asg"
+  desired_capacity = 1
+  min_size         = 1
+  max_size         = 2
 
   target_group_arns = [aws_lb_target_group.asg.arn]
   health_check_type = "ELB"
@@ -41,9 +41,9 @@ resource "aws_autoscaling_group" "example" {
 resource "aws_lb" "example" {
   name               = "aws00-alb"
   load_balancer_type = "application"
-  subnets            = [data.terraform_remote_state.vpc.outputs.public-subnet-2a-id, 
-                        data.terraform_remote_state.vpc.outputs.public-subnet-2c-id ]
-  security_groups    = [data.terraform_remote_state.security_group.outputs.http_id]
+  subnets = [data.terraform_remote_state.vpc.outputs.public-subnet-2a-id,
+  data.terraform_remote_state.vpc.outputs.public-subnet-2c-id]
+  security_groups = [data.terraform_remote_state.security_group.outputs.http_id]
 }
 
 // 로드밸런스 리스너
