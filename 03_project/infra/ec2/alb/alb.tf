@@ -4,8 +4,7 @@ resource "aws_launch_template" "example" {
   image_id               = "ami-04c139e313ba97014"
   instance_type          = "t2.micro"
   key_name               = "aws00-key"
-  vpc_security_group_ids = [data.terraform_remote_state.security_group.outputs.http_id,
-                            data.terraform_remote_state.security_group.outputs.https_id, ]
+  vpc_security_group_ids = [data.terraform_remote_state.security_group.outputs.http_id]
 
   user_data = base64encode(data.template_file.web_output.rendered)
 
@@ -50,7 +49,7 @@ resource "aws_lb" "example" {
 // 로드밸런스 리스너
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = 8080
+  port              = var.web_port
   protocol          = "HTTP"
 
   default_action {
