@@ -1,12 +1,13 @@
 // 시작 템플릿
 resource "aws_launch_template" "example" {
   name                   = "aws00-template"
-  image_id               = "ami-04c139e313ba97014"
+  image_id               = "ami-04ce2e86a5fe92f4f"
   instance_type          = "t2.micro"
   key_name               = "aws00-key"
-  vpc_security_group_ids = [data.terraform_remote_state.security_group.outputs.http_id]
-
-  user_data = base64encode(data.template_file.web_output.rendered)
+  vpc_security_group_ids = [aws_security_group.target-sg.id]
+  iam_instance_profile {
+    name = "aws00-codedeploy-ec2-role"
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -16,11 +17,11 @@ resource "aws_launch_template" "example" {
 // 오토스케일링 그룹
 resource "aws_autoscaling_group" "example" {
   vpc_zone_identifier = [data.terraform_remote_state.vpc.outputs.private-subnet-2a-id,
-  data.terraform_remote_state.vpc.outputs.private-subnet-2c-id]
+                        data.terraform_remote_state.vpc.outputs.private-subnet-2c-id]
   name             = "aws00-asg"
   desired_capacity = 1
   min_size         = 1
-  max_size         = 2
+  max_size         = 3
 
   target_group_arns = [aws_lb_target_group.asg.arn]
   health_check_type = "ELB"
@@ -42,14 +43,14 @@ resource "aws_lb" "example" {
   name               = "aws00-alb"
   load_balancer_type = "application"
   subnets = [data.terraform_remote_state.vpc.outputs.public-subnet-2a-id,
-  data.terraform_remote_state.vpc.outputs.public-subnet-2c-id]
-  security_groups = [data.terraform_remote_state.security_group.outputs.http_id]
+             data.terraform_remote_state.vpc.outputs.public-subnet-2c-id]
+  security_groups = [aws_security_group.target-sg.id]
 }
 
 // 로드밸런스 리스너
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = var.web_port
+  port              = var.target_port
   protocol          = "HTTP"
 
   default_action {
@@ -83,7 +84,7 @@ resource "aws_lb_listener_rule" "asg" {
 // 대상그룹
 resource "aws_lb_target_group" "asg" {
   name     = "aws00-target-group"
-  port     = var.web_port
+  port     = var.target_port
   protocol = "HTTP"
   vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
@@ -98,9 +99,23 @@ resource "aws_lb_target_group" "asg" {
   }
 }
 
-data "template_file" "web_output" {
-  template = file("${path.module}/web.sh")
-  vars = {
-    web_port = "${var.web_port}"
+resource "aws_security_group" "target-sg" {
+  name   = "aws00-target-sg"
+  vpc_id = data.terraform_remote_state.vpc.outputs.vpc_id
+
+  ingress {
+    from_port   = var.target_port
+    to_port     = var.target_port
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = "aws00-target-sg"
   }
 }

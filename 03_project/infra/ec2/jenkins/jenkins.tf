@@ -1,4 +1,4 @@
-resource "aws_instance" "bastion" {
+resource "aws_instance" "jenkins" {
   ami                         = "ami-09eb4311cbaecf89d"
   instance_type               = "t2.micro"
   key_name                    = "aws00-key"
@@ -8,7 +8,9 @@ resource "aws_instance" "bastion" {
 
   subnet_id = data.terraform_remote_state.vpc.outputs.public-subnet-2a-id
 
+  user_data = 
+
   tags = {
-    Name = "aws00-bastion"
+    Name = "aws00-jenkins"
   }
 }
