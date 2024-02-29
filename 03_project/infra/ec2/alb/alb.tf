@@ -47,10 +47,10 @@ resource "aws_lb" "example" {
   security_groups = [data.terraform_remote_state.security_group.outputs.http_id]
 }
 
-// 로드밸런스 리스너
+// 로드밸런스 리스너 - asg
 resource "aws_lb_listener" "target_http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = 80
+  port              = 8080
   protocol          = "HTTP"
 
   default_action {
@@ -67,7 +67,7 @@ resource "aws_lb_listener" "target_http" {
 // 로드밸런스 리스너 룰 - asg
 resource "aws_lb_listener_rule" "asg" {
   listener_arn = aws_lb_listener.target_http.arn
-  priority     = 100
+  priority     = 90
 
   action {
     type             = "forward"
@@ -76,7 +76,7 @@ resource "aws_lb_listener_rule" "asg" {
 
   condition {
     path_pattern {
-      values = ["/target/*"]
+      values = ["*"]
     }
   }
 }
@@ -84,7 +84,7 @@ resource "aws_lb_listener_rule" "asg" {
 // 대상그룹 - asg
 resource "aws_lb_target_group" "asg" {
   name     = "aws00-target-group"
-  port     = var.app_port
+  port     = 8080
   protocol = "HTTP"
   vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
@@ -99,9 +99,26 @@ resource "aws_lb_target_group" "asg" {
   }
 }
 
-// 로드밸런스 리스너 룰 - jenkins
+// 로드밸런스 리스너 - jenkins
+resource "aws_lb_listener" "jenkins_http" {
+  load_balancer_arn = aws_lb.example.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "404: page not found"
+      status_code  = 404
+    }
+  }
+}
+
+# 로드밸런스 리스너 룰 - jenkins
 resource "aws_lb_listener_rule" "jenkins" {
-  listener_arn = aws_lb_listener.target_http.arn
+  listener_arn = aws_lb_listener.jenkins_http.arn
   priority     = 100
 
   action {
@@ -111,7 +128,7 @@ resource "aws_lb_listener_rule" "jenkins" {
 
   condition {
     path_pattern {
-      values = ["/jenkins/*"]
+      values = ["*"]
     }
   }
 }
@@ -120,7 +137,7 @@ resource "aws_lb_listener_rule" "jenkins" {
 resource "aws_lb_target_group" "jenkins" {
   name     = "aws00-jenkins"
   target_type = "instance"
-  port     = var.app_port
+  port     = 80
   protocol = "HTTP"
   vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
@@ -138,5 +155,5 @@ resource "aws_lb_target_group" "jenkins" {
 resource "aws_lb_target_group_attachment" "jenkins" {
   target_group_arn = aws_lb_target_group.jenkins.arn
   target_id        = data.terraform_remote_state.jenkins_instance.outputs.jenkins_id
-  port             = 8080
+  port             = 80
 }

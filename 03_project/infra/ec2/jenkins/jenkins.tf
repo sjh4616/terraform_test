@@ -4,7 +4,7 @@ resource "aws_instance" "jenkins" {
   key_name                    = "aws00-key"
   private_ip                  = "10.0.64.100" 
   security_groups             = [data.terraform_remote_state.security_group.outputs.ssh_id,
-                                 data.terraform_remote_state.security_group.outputs.app_http_id ]
+                                 data.terraform_remote_state.security_group.outputs.http_id ]
   subnet_id = data.terraform_remote_state.vpc.outputs.private-subnet-2a-id
 
   user_data = templatefile("${path.module}/templates/userdata.sh", {})  
