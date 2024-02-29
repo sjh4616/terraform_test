@@ -3,6 +3,11 @@ variable "ssh_port" {
   type        = number
   default     = 22
 }
+variable "app_port" {
+  description = "The port will use for HTTP requests"
+  type        = number
+  default     = 8080
+}
 variable "http_port" {
   description = "The port will use for HTTP requests"
   type        = number
