@@ -18,7 +18,7 @@ resource "aws_security_group" "ssh" {
     Name = "aws00-ssh"
   }
 }
-resource "aws_security_group" "app-http" {
+resource "aws_security_group" "app_http" {
   name   = "aws00-app-http"
   vpc_id = data.terraform_remote_state.vpc.outputs.vpc_id
 

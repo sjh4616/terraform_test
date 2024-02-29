@@ -1,10 +1,10 @@
 // 시작 템플릿
 resource "aws_launch_template" "example" {
   name                   = "aws00-template"
-  image_id               = "ami-04ce2e86a5fe92f4f"
+  image_id               = "ami-09f45149ec9192897"
   instance_type          = "t2.micro"
   key_name               = "aws00-key"
-  vpc_security_group_ids = [aws_security_group.target-sg.id]
+  vpc_security_group_ids = [data.terraform_remote_state.security_group.outputs.app_http_id]
   iam_instance_profile {
     name = "aws00-codedeploy-ec2-role"
   }
@@ -19,7 +19,7 @@ resource "aws_autoscaling_group" "example" {
   vpc_zone_identifier = [data.terraform_remote_state.vpc.outputs.private-subnet-2a-id,
                         data.terraform_remote_state.vpc.outputs.private-subnet-2c-id]
   name             = "aws00-asg"
-  desired_capacity = 1
+  desired_capacity = 1                                    
   min_size         = 1
   max_size         = 3
 
@@ -29,7 +29,7 @@ resource "aws_autoscaling_group" "example" {
   launch_template {
     id      = aws_launch_template.example.id
     version = "$Latest"
-  }
+  }                
 
   tag {
     key                 = "Name"
@@ -44,13 +44,13 @@ resource "aws_lb" "example" {
   load_balancer_type = "application"
   subnets = [data.terraform_remote_state.vpc.outputs.public-subnet-2a-id,
              data.terraform_remote_state.vpc.outputs.public-subnet-2c-id]
-  security_groups = [aws_security_group.target-sg.id]
+  security_groups = [data.terraform_remote_state.security_group.outputs.http_id]
 }
 
 // 로드밸런스 리스너
-resource "aws_lb_listener" "http" {
+resource "aws_lb_listener" "target_http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = var.target_port
+  port              = 80
   protocol          = "HTTP"
 
   default_action {
@@ -64,9 +64,9 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-// 로드밸런스 리스너 룰
+// 로드밸런스 리스너 룰 - asg
 resource "aws_lb_listener_rule" "asg" {
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = aws_lb_listener.target_http.arn
   priority     = 100
 
   action {
@@ -76,15 +76,15 @@ resource "aws_lb_listener_rule" "asg" {
 
   condition {
     path_pattern {
-      values = ["*"]
+      values = ["/target/*"]
     }
   }
 }
 
-// 대상그룹
+// 대상그룹 - asg
 resource "aws_lb_target_group" "asg" {
   name     = "aws00-target-group"
-  port     = var.target_port
+  port     = var.app_port
   protocol = "HTTP"
   vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
@@ -99,23 +99,44 @@ resource "aws_lb_target_group" "asg" {
   }
 }
 
-resource "aws_security_group" "target-sg" {
-  name   = "aws00-target-sg"
-  vpc_id = data.terraform_remote_state.vpc.outputs.vpc_id
+// 로드밸런스 리스너 룰 - jenkins
+resource "aws_lb_listener_rule" "jenkins" {
+  listener_arn = aws_lb_listener.target_http.arn
+  priority     = 100
 
-  ingress {
-    from_port   = var.target_port
-    to_port     = var.target_port
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.jenkins.arn
   }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+
+  condition {
+    path_pattern {
+      values = ["/jenkins/*"]
+    }
   }
-  tags = {
-    Name = "aws00-target-sg"
+}
+
+// 대상그룹 - Jenkins EC2
+resource "aws_lb_target_group" "jenkins" {
+  name     = "aws00-jenkins"
+  target_type = "instance"
+  port     = var.app_port
+  protocol = "HTTP"
+  vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 15
+    timeout             = 3
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
+}
+
+resource "aws_lb_target_group_attachment" "jenkins" {
+  target_group_arn = aws_lb_target_group.jenkins.arn
+  target_id        = data.terraform_remote_state.jenkins_instance.outputs.jenkins_id
+  port             = 8080
 }
